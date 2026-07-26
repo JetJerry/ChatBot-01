@@ -1,4 +1,4 @@
-from chatbot_backend import chatbot 
+from db_backend import chatbot, get_all_threads
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 import streamlit as st
 import uuid 
@@ -51,7 +51,7 @@ def load_conversation(thread_id):
 
 
 # Display the main application title
-st.title("Self Chatbot")
+st.title("Agentic Chatbot with LangGraph")
 
 
 # Create message_history when the app runs for the first time
@@ -66,7 +66,7 @@ if "thread_id" not in st.session_state:
 
 # Create a list for storing all conversation thread IDs
 if "chat_threads" not in st.session_state:
-    st.session_state["chat_threads"] = []
+    st.session_state["chat_threads"] = get_all_threads()
 
 
 
@@ -178,11 +178,15 @@ if user_input:
 
     # Pass the current thread ID to LangGraph
     # LangGraph uses this ID to save and retrieve conversation memory
+
     CONFIG = {
-        "configurable": {
+        "configurable": {"thread_id": st.session_state["thread_id"]},
+        "metadata": {
             "thread_id": st.session_state["thread_id"]
-        }
+        },
+        "run_name": "chat_trace",
     }
+
 
 
     # Create the assistant chat-message container
