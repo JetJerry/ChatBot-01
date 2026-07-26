@@ -27,9 +27,6 @@ def reset_chat():
     # Clear the current chat messages from the UI
     st.session_state["message_history"] = []
 
-    # Add the new thread to the conversation list
-    add_thread(st.session_state["thread_id"])
-
 
 
 # Load a previous conversation from the LangGraph checkpointer
@@ -69,9 +66,23 @@ if "chat_threads" not in st.session_state:
     st.session_state["chat_threads"] = get_all_threads()
 
 
+# Create the chat input box early so a new thread can be registered before the sidebar renders.
+user_input = st.chat_input("Type here")
 
-# Add the current thread to the conversation list
-add_thread(st.session_state["thread_id"])
+
+# Run this block after the user submits a message.
+# Register the thread before rendering the sidebar so it appears immediately.
+if user_input:
+
+    # Show this thread in the sidebar only after it has actual content.
+    add_thread(st.session_state["thread_id"])
+
+    # Save the user's message in Streamlit session state.
+    st.session_state["message_history"].append({
+        "role": "user",
+        "content": user_input
+    })
+
 
 
 # ========================= Sidebar threading feature =========================
@@ -156,28 +167,9 @@ for message in st.session_state["message_history"]:
         st.text(message["content"])
 
 
-
-# Create the chat input box
-user_input = st.chat_input("Type here")
-
-
-# Run this block after the user submits a message
+# Pass the current thread ID to LangGraph only when a new message was submitted.
+# LangGraph uses this ID to save and retrieve conversation memory.
 if user_input:
-
-    # Save the user's message in Streamlit session state
-    st.session_state["message_history"].append({
-        "role": "user",
-        "content": user_input
-    })
-
-
-    # Display the user's message in the chat interface
-    with st.chat_message("user"):
-        st.text(user_input)
-
-
-    # Pass the current thread ID to LangGraph
-    # LangGraph uses this ID to save and retrieve conversation memory
 
     CONFIG = {
         "configurable": {"thread_id": st.session_state["thread_id"]},
