@@ -15,3 +15,5 @@ langchain-groq
 langchain-huggingface 
 sentence-transformers
 streamlit 
+langchain-huggingface 
+sentence-transformers
