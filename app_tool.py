@@ -49,6 +49,39 @@ def load_conversation(thread_id):
     return state.values.get("messages", [])
 
 
+# Utility: derive a short title for a thread from its messages (with simple cache)
+def get_thread_title(thread_id, max_len=40):
+    if "thread_titles" not in st.session_state:
+        st.session_state["thread_titles"] = {}
+    # Return cached title when available to avoid repeated remote calls
+    if thread_id in st.session_state["thread_titles"]:
+        return st.session_state["thread_titles"][thread_id]
+
+    messages = load_conversation(thread_id)
+    # Prefer first user message, then first assistant message
+    text = None
+    for m in messages:
+        if isinstance(m, HumanMessage):
+            text = m.content
+            break
+    if not text:
+        for m in messages:
+            if isinstance(m, AIMessage):
+                text = m.content
+                break
+    if not text:
+        # Fallback to showing the thread id (shortened)
+        title = thread_id[:8] + "..."
+        st.session_state["thread_titles"][thread_id] = title
+        return title
+    # Normalize and truncate
+    title = " ".join(text.strip().splitlines())
+    if len(title) > max_len:
+        title = title[:max_len-1].rstrip() + "…"
+    st.session_state["thread_titles"][thread_id] = title
+    return title
+
+
 
 # Display the main application title
 st.title("Agentic Chatbot with LangGraph")
@@ -70,8 +103,19 @@ if "chat_threads" not in st.session_state:
 
 
 
-# Add the current thread to the conversation list
-add_thread(st.session_state["thread_id"])
+# Create the chat input box early so a new thread can be registered before the sidebar renders.
+user_input = st.chat_input("Type here")
+
+
+# Register the thread before rendering the sidebar so it appears immediately after the first message.
+if user_input:
+    add_thread(st.session_state["thread_id"])
+
+    # Save the user's message in Streamlit session state.
+    st.session_state["message_history"].append({
+        "role": "user",
+        "content": user_input
+    })
 
 
 # ========================= Sidebar threading feature =========================
@@ -96,9 +140,12 @@ if st.sidebar.button("New Chat"):
 # This shows the newest conversation first
 for thread_id in st.session_state["chat_threads"][::-1]:
 
-    # Create one sidebar button for every conversation
+    # Derive a short human-friendly title for the thread
+    title = get_thread_title(thread_id)
+
+    # Create one sidebar button for every conversation (use full thread_id as key)
     if st.sidebar.button(
-        str(thread_id),
+        str(title),
         key=thread_id
     ):
 
@@ -156,20 +203,8 @@ for message in st.session_state["message_history"]:
         st.text(message["content"])
 
 
-
-# Create the chat input box
-user_input = st.chat_input("Type here")
-
-
 # Run this block after the user submits a message
 if user_input:
-
-    # Save the user's message in Streamlit session state
-    st.session_state["message_history"].append({
-        "role": "user",
-        "content": user_input
-    })
-
 
     # Display the user's message in the chat interface
     with st.chat_message("user"):
